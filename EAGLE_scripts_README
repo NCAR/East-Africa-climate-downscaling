@@ -1,0 +1,61 @@
+This is the documentation for the WRF simulations run for the
+EAGLE project (PI Joe Grim, and James Pinto and Anders Jensen) 
+
+0) WPS shoud be run. Note that the intermediate files already exist, 
+   so geogrid.exe and metgrid.exe were run manually.
+
+1) run_real.sh YYYY (where YYYY is a year input by user)
+
+This script divides a year into 30 day intervals so that wrf can be run
+at those 30 day intervals and not exceed the 12-h Cheyenne wall clock limit.
+NOTE: CONFIGURE/COMPILE WRF TO RUN WITH NO LEAP!
+This script exports the beginning and end time for each 30 day block
+to the cheyenne_real_submit script
+
+2) cheyenne_real_submit
+
+This script is automatically run by run_real.sh
+This script sets up the directory tree in /glade/scratch/ and 
+copies the appropriate files there needed to run WRF including
+the aux_var files, the namlist, the microphysics lookup tables, 
+and the tslist files. 
+This script then creates the appropriate namelist.input based on
+the beginning and end times
+Finally, real.exe is run
+
+3) run_wrf.sh YYYY (where YYYY is a year input by user)
+
+This script runs wrf for a given year in 30 day time blocks. This
+script searchs for SUCCESS COMPLETE WRF in rsl.out.0000 to determine 
+when a time block is complete and resubmits the next time block.
+
+4) cheyenne_wrf_submit
+
+This script is automaticaly run by run_wrf.sh
+At the beginning of a year-long simulation, this script clobbers the 
+SST and TSK values over water to use the GHRSST values. This is done
+by calling the regrid_wrfinput and regrid_wrflowinp scripts. Next, 
+wrf restart files are grabbed if needed and the wrf run directory
+files are linked to the run directory. Finally, wrf is run. 
+cheyenne_wrf_restart_manual is a manual wrf restart script in case 
+things go bonkers.
+
+
+Important WRF stuff and changes:
+0) Make sure the links to the wrf executable and other links are defined appropriately
+1) CONFIGURE/COMPILE with NO LEAP. No one likes leap years anyway.
+2) The SSTs come from the Group for High Resolution Sea Surface Temperature (GHRSST)
+3) The Noah MP script is updated to be southern hemisphere only.
+   This fixes an issue caused by the domain crossing the equator and variables like
+   LAI being half a year apart seasonally, e.g. January in the northern hemisphere 
+   part of the domain and everything dead, July in the southern hemisphere part of 
+   the domain and every green. 
+4) A 4-point interpolation is used for the met_em variable RH to keep it positive
+   in dry conditions
+5) The Kain-Fritsch scheme had issues with low relative humidity values near the surface
+   (see point 4 above.) and would sometimes stop if qv<0. This check is bypassed to
+   keep things running.
+6) RRTMG greenhouse gas values were updated (both LW and SW) for the mid-century
+   and end-of-century runs. Those files are stored, as
+   module_ra_rrtmg_lw.F_2060_values, module_ra_rrtmg_lw.F_2095_values,
+   module_ra_rrtmg_sw.F_2060_values, module_ra_rrtmg_sw.F_2095_values
